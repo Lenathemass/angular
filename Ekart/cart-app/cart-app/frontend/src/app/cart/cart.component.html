@@ -1,0 +1,60 @@
+<div class="page">
+  <h1>🛒 My Cart</h1>
+
+  @if (error) { <p class="error">{{ error }}</p> }
+
+  <!-- Add / Update form -->
+  <div class="form">
+    <input [(ngModel)]="form.name" placeholder="Product name" />
+    <input [(ngModel)]="form.price" type="number" min="0" placeholder="Price" />
+    <input [(ngModel)]="form.quantity" type="number" min="1" placeholder="Qty" />
+    <button class="primary" (click)="save()">
+      {{ editingId === null ? 'Add to Cart' : 'Update' }}
+    </button>
+    @if (editingId !== null) { <button (click)="reset()">Cancel</button> }
+  </div>
+
+  <!-- Product list -->
+  <table>
+    <thead>
+      <tr><th>#</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      @for (item of items; track item.id) {
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.name }}</td>
+          <td>{{ item.price | currency:'INR' }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.price * item.quantity | currency:'INR' }}</td>
+          <td>
+            <button (click)="edit(item)">Edit</button>
+            <button class="danger" (click)="remove(item.id!)">Delete</button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6" class="empty">Your cart is empty</td></tr>
+      }
+    </tbody>
+  </table>
+
+  <section class="order-summary" aria-labelledby="order-summary-title">
+    <h2 id="order-summary-title">Order Summary</h2>
+    @if (items.length) {
+      <ul class="summary-items">
+        @for (item of items; track item.id) {
+          <li>
+            <span class="summary-product">
+              <span class="product-name">{{ item.name }}</span>
+              <span class="product-quantity">Qty: {{ item.quantity }}</span>
+            </span>
+            <span>{{ item.price * item.quantity | currency:'INR' }}</span>
+          </li>
+        }
+      </ul>
+      <p class="total">Total: {{ total | currency:'INR' }}</p>
+    } @else {
+      <p class="summary-empty">Add products to see your order summary.</p>
+    }
+  </section>
+</div>

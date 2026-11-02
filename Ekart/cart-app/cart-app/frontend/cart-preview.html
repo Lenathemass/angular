@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ekart - Cart Preview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #1f2937; background: #f7f8fc; font: 16px system-ui, sans-serif; }
+    .page { max-width: 900px; margin: 40px auto; padding: 28px; background: #fff; border: 1px solid #e8eaf0; border-radius: 12px; box-shadow: 0 8px 28px #1725540d; }
+    h1 { margin: 0 0 22px; font-size: 28px; }
+    .form { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    input, button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font: inherit; }
+    input { min-width: 110px; flex: 1; }
+    button { cursor: pointer; background: #f5f5f5; }
+    button.primary { color: #fff; border-color: #4f46e5; background: #4f46e5; font-weight: 600; }
+    button.danger { margin-left: 6px; color: #fff; border-color: #dc2626; background: #dc2626; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    th { color: #4b5563; background: #f9fafb; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+    .order-summary { margin-top: 28px; padding: 20px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; }
+    .order-summary h2 { margin: 0 0 12px; font-size: 20px; }
+    .summary-items { margin: 0; padding: 0; list-style: none; }
+    .summary-items li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
+    .summary-product { display: flex; flex-direction: column; }
+    .product-name { font-weight: 600; }
+    .product-quantity { color: #666; font-size: 14px; }
+    .total { margin: 16px 0 0; text-align: right; font-size: 18px; font-weight: 700; }
+    .message { min-height: 1.5em; margin: -12px 0 16px; color: #b91c1c; }
+    .empty { padding: 18px; color: #666; text-align: center; }
+    @media (max-width: 600px) { .page { margin: 16px; padding: 18px; } .form input { flex-basis: 100%; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>🛒 My Cart</h1>
+    <form class="form" id="cart-form">
+      <input id="product-name" placeholder="Product name" aria-label="Product name" required>
+      <input id="product-price" placeholder="Price" aria-label="Price" type="number" min="0" step="0.01" required>
+      <input id="product-quantity" placeholder="Qty" aria-label="Quantity" type="number" min="1" step="1" value="1" required>
+      <button class="primary" id="save-button" type="submit">Add to Cart</button>
+      <button id="cancel-button" type="button" hidden>Cancel</button>
+    </form>
+    <p class="message" id="message" role="status" aria-live="polite"></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th>Actions</th></tr></thead>
+        <tbody id="cart-items"></tbody>
+      </table>
+    </div>
+    <section class="order-summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">Order Summary</h2>
+      <ul class="summary-items" id="summary-items"></ul>
+      <p class="total" id="cart-total">Total: ₹0.00</p>
+    </section>
+  </main>
+  <script>
+    const items = [
+      { id: 1, name: 'Wireless Mouse', price: 799, quantity: 1 },
+      { id: 2, name: 'USB-C Hub', price: 1499, quantity: 2 }
+    ];
+    const form = document.getElementById('cart-form');
+    const nameInput = document.getElementById('product-name');
+    const priceInput = document.getElementById('product-price');
+    const quantityInput = document.getElementById('product-quantity');
+    const saveButton = document.getElementById('save-button');
+    const cancelButton = document.getElementById('cancel-button');
+    const message = document.getElementById('message');
+    const tableBody = document.getElementById('cart-items');
+    const summaryItems = document.getElementById('summary-items');
+    const totalElement = document.getElementById('cart-total');
+    let editingId = null;
+    let nextId = 3;
+
+    const money = amount => new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2
+    }).format(amount);
+
+    function addCell(row, value) {
+      const cell = document.createElement('td');
+      cell.textContent = value;
+      row.appendChild(cell);
+      return cell;
+    }
+
+    function render() {
+      tableBody.replaceChildren();
+      summaryItems.replaceChildren();
+      let total = 0;
+
+      items.forEach((item, index) => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+
+        const row = document.createElement('tr');
+        addCell(row, String(index + 1));
+        addCell(row, item.name);
+        addCell(row, money(item.price));
+        addCell(row, String(item.quantity));
+        addCell(row, money(subtotal));
+        const actions = document.createElement('td');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.dataset.action = 'edit';
+        editButton.dataset.id = String(item.id);
+        editButton.textContent = 'Edit';
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'danger';
+        deleteButton.dataset.action = 'delete';
+        deleteButton.dataset.id = String(item.id);
+        deleteButton.textContent = 'Delete';
+        actions.append(editButton, deleteButton);
+        row.appendChild(actions);
+        tableBody.appendChild(row);
+
+        const summaryRow = document.createElement('li');
+        const product = document.createElement('span');
+        product.className = 'summary-product';
+        const productName = document.createElement('span');
+        productName.className = 'product-name';
+        productName.textContent = item.name;
+        const productQuantity = document.createElement('span');
+        productQuantity.className = 'product-quantity';
+        productQuantity.textContent = `Qty: ${item.quantity}`;
+        product.append(productName, productQuantity);
+        const amount = document.createElement('span');
+        amount.textContent = money(subtotal);
+        summaryRow.append(product, amount);
+        summaryItems.appendChild(summaryRow);
+      });
+
+      if (items.length === 0) {
+        const emptyRow = document.createElement('tr');
+        const emptyCell = addCell(emptyRow, 'Your cart is empty');
+        emptyCell.colSpan = 6;
+        emptyCell.className = 'empty';
+        tableBody.appendChild(emptyRow);
+        const emptySummary = document.createElement('li');
+        emptySummary.className = 'empty';
+        emptySummary.textContent = 'Add products to see your order summary.';
+        summaryItems.appendChild(emptySummary);
+      }
+
+      totalElement.textContent = `Total: ${money(total)}`;
+    }
+
+    function resetForm() {
+      form.reset();
+      quantityInput.value = '1';
+      editingId = null;
+      saveButton.textContent = 'Add to Cart';
+      cancelButton.hidden = true;
+      message.textContent = '';
+    }
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      const price = Number(priceInput.value);
+      const quantity = Number(quantityInput.value);
+      if (!name || !Number.isFinite(price) || price < 0 || !Number.isInteger(quantity) || quantity < 1) {
+        message.textContent = 'Enter a product name, a valid non-negative price, and a quantity of at least 1.';
+        return;
+      }
+
+      if (editingId === null) {
+        items.push({ id: nextId++, name, price, quantity });
+      } else {
+        const item = items.find(product => product.id === editingId);
+        if (!item) {
+          message.textContent = 'That product is no longer in the cart. Please try again.';
+          resetForm();
+          return;
+        }
+        Object.assign(item, { name, price, quantity });
+      }
+
+      resetForm();
+      render();
+    });
+
+    tableBody.addEventListener('click', event => {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const id = Number(button.dataset.id);
+      const itemIndex = items.findIndex(product => product.id === id);
+      if (itemIndex === -1) return;
+
+      if (button.dataset.action === 'edit') {
+        const item = items[itemIndex];
+        editingId = item.id;
+        nameInput.value = item.name;
+        priceInput.value = String(item.price);
+        quantityInput.value = String(item.quantity);
+        saveButton.textContent = 'Update';
+        cancelButton.hidden = false;
+        message.textContent = '';
+        nameInput.focus();
+      } else if (button.dataset.action === 'delete') {
+        items.splice(itemIndex, 1);
+        if (editingId === id) resetForm();
+        render();
+      }
+    });
+
+    cancelButton.addEventListener('click', resetForm);
+    render();
+  </script>
+</body>
+</html>
